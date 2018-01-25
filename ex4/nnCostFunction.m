@@ -1,0 +1,131 @@
+function [J grad] = nnCostFunction(nn_params, ...
+                                   input_layer_size, ...
+                                   hidden_layer_size, ...
+                                   num_labels, ...
+                                   X, y, lambda)
+%NNCOSTFUNCTION Implements the neural network cost function for a two layer
+%neural network which performs classification
+%   [J grad] = NNCOSTFUNCTON(nn_params, hidden_layer_size, num_labels, ...
+%   X, y, lambda) computes the cost and gradient of the neural network. The
+%   parameters for the neural network are "unrolled" into the vector
+%   nn_params and need to be converted back into the weight matrices. 
+% 
+%   The returned parameter grad should be a "unrolled" vector of the
+%   partial derivatives of the neural network.
+%
+
+% Reshape nn_params back into the parameters Theta1 and Theta2, the weight matrices
+% for our 2 layer neural network
+Theta1 = reshape(nn_params(1:hidden_layer_size * (input_layer_size + 1)), ...
+                 hidden_layer_size, (input_layer_size + 1)); 
+%Suhas--> Theta1 =rehsape(nn_params(1: 25*400+1), 25,11)   size= 25*401
+Theta2 = reshape(nn_params((1 + (hidden_layer_size * (input_layer_size + 1))):end), ...
+                 num_labels, (hidden_layer_size + 1));
+%Suhas--> Theta2=reshape (nn_paprams((1+ 25*401):end), 10, 26) the reason we kept
+%it here as variable names and not fixed value is to not generalize it,
+%size= 10*26
+
+% Setup some useful variables
+m = size(X, 1);
+         
+% You need to return the following variables correctly 
+J = 0;
+Theta1_grad = zeros(size(Theta1));
+Theta2_grad = zeros(size(Theta2));
+
+% ====================== YOUR CODE HERE ======================
+% Instructions: You should complete the code by working through the
+%               following parts.
+%
+% Part 1: Feedforward the neural network and return the cost in the
+%         variable J. After implementing Part 1, you can verify that your
+%         cost function computation is correct by verifying the cost
+%         computed in ex4.m
+%
+% Part 2: Implement the backpropagation algorithm to compute the gradients
+%         Theta1_grad and Theta2_grad. You should return the partial derivatives of
+%         the cost function with respect to Theta1 and Theta2 in Theta1_grad and
+%         Theta2_grad, respectively. After implementing Part 2, you can check
+%         that your implementation is correct by running checkNNGradients
+%
+%         Note: The vector y passed into the function is a vector of labels
+%               containing values from 1..K. You need to map this vector into a 
+%               binary vector of 1's and 0's to be used with the neural network
+%               cost function.
+%
+%         Hint: We recommend implementing backpropagation using a for-loop
+%               over the training examples if you are implementing it for the 
+%               first time.
+%
+% Part 3: Implement regularization with the cost function and gradients.
+%
+%         Hint: You can implement this around the code for
+%               backpropagation. That is, you can compute the gradients for
+%               the regularization separately and then add them to Theta1_grad
+%               and Theta2_grad from Part 2.
+
+%----------------------------------------Part--------------------------
+X = [ones(m, 1) X]; %X dimensionn = 5000*401 
+A1=X;               %doing it for naming simplicity, calling input data set as A1
+z1=A1*(Theta1)';    %A1 dimensison= 5000*401  (Theta1)' Dimension is 401*25  Resultant Dimension is = 5000*25
+A2=sigmoid(z1);     %every layer has logistic regression hypotheis hence sigmoid of (Theta_T*X)   
+A2=[ones(m,1) A2];  %Adding bias unit for computational purposes hence A2 matrix Dimension is = 401*26 matrix
+z2=A2*(Theta2)';    %resultant Dimension = 5000*10 matrix  
+A3=sigmoid(z2);     %sigmoid of A2*Theta2 results in A3 i,e A3 Dimenion is = 5000*10
+
+h = A3;             %Taking final layer units as hypotheis
+
+all_combos = eye(num_labels);   %creation of 10*10 Diagonal matrix
+y_matrix = all_combos(y,:);      % Example of what happens --> if first row of y(1,:) = 10; i,e Y_matrix= all_combos(10,:) 
+                                %i.e 10 th row of all combos. y_matrix(1,:)= 0 0 0 0 0 0 0 0 0 1. Since                                
+                                 
+%*************** Solution 1:- this is vectorized implementation with for loop*********%
+% for i=1:num_labels        
+% 
+%     J=J+(-y_matrix(:,i)'*log(h(:,i))-(1-y_matrix(:,i)')*log(1-h(:,i)))*(1/m);
+% 
+% end
+
+%***************** Solution 2:-  for vectorized implmentation without for loop *****%
+J=(1/m)*sum(sum(-y_matrix.*log(h)-(1-y_matrix).*log(1-h)))
+
+Theta1_squares=sum(sum(Theta1(:,2:end).*Theta1(:,2:end)));
+Theta2_squares=sum(sum(Theta2(:,2:end).*Theta2(:,2:end)));
+
+J=J+(lambda/(2*m))*(Theta2_squares+Theta1_squares)
+% % -----------------------------------------------------------------------
+% %------------------------------------part 2------------------------------
+%  
+ accumulator1=zeros(size(Theta1));
+ accumulator2=zeros(size(Theta2)); 
+
+ for t = 1:m
+ A_1=X(t,:);               %initializig first row of data set from X Dimension A_1 =1*401
+ z_2=A_1*(Theta1)';        
+ A_2=sigmoid(z_2);         %Dimension A_2 = 1*25
+ A_2=[1 A_2];              %Dimension A_2 = 1*26
+ z_3=A_2*(Theta2)';        %Dimension z_3 = 1*10  
+ A_3=sigmoid(z_3);         %Dimension A_3 = 1*10
+ H = A_3;                  %Dimension H = 1*10
+ d3=H-y_matrix(t,:);       % here d3 is the error term of 3rd layer  
+                           %Dimension d3 =1*10 Dimenson Theta2= 10*26 Dimension sigmoidGradient(Z_3) is 1*10
+ 
+ d2=(Theta2(:,2:end)'*(d3')).*(sigmoidGradient(z_2)'); % Dimension of ((Theta2(:,2:end)'*(d3)') = 25*1 Dimension sigmoidGradient(Z_2) is 25*1 dimension d2 = 25*1
+
+% for reference of array size compatibiliy use https://www.mathworks.com/help/matlab/matlab_prog/compatible-array-sizes-for-basic-operations.html
+
+% NOTE :- Read this discussion from https://www.coursera.org/learn/machine-learning/discussions/all/threads/a8Kce_WxEeS16yIACyoj1Q
+% we know that we can compute the partial derivatives terms by multiplying our
+% activation values with error values for each training example
+
+accumulator1 = accumulator1 + d2 * A_1; % 25 x 401
+accumulator2 = accumulator2 + d3' * A_2; % 10 x 26
+ end
+% =========================================================================
+ Theta1_grad = 1/m*accumulator1+lambda/m*[zeros(size(Theta1,1),1) Theta1(:, 2:end)];
+ Theta2_grad = 1/m*accumulator2+lambda/m*[zeros(size(Theta2,1),1) Theta2(:, 2:end)];
+% Unroll gradients
+grad = [Theta1_grad(:) ; Theta2_grad(:)];
+
+end
+
